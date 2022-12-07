@@ -1,8 +1,6 @@
 const sizeOf = require("image-size");
 const fs = require("fs");
 const { doms, INDEX, ABOUT, CONTACT } = require("./dom-check.js");
-const { execPath } = require("process");
-const { type } = require("os");
 //const { execPath } = require("process");
 
 const convertDocIndexToName = index =>
@@ -43,19 +41,9 @@ const svg = new RegExp(/svg$/);
 
 imgs.forEach(img => {
   //clean paths
-  let hotlink = false;
-  if (img.image.src.startsWith("http")) {
-    hotlink = true;
-  }
-  let path = "";
-  let dimensions = 0;
-
-  if (!hotlink) {
-    path = img.image.src.replace(/^..\//, "");
-    dimensions = sizeOf(path);
-  }
-
+  const path = img.image.src.replace(/^..\//, "");
   // get image dimensions
+  const dimensions = sizeOf(path);
 
   images.push({
     img: img.image,
@@ -63,7 +51,6 @@ imgs.forEach(img => {
     path: path,
     checkDimensions: !hero.test(path) && !svg.test(path),
     file: convertDocIndexToName(img.index),
-    hotlink: hotlink,
   });
 });
 
@@ -172,12 +159,12 @@ describe("\nImage tests\n-----------------------", () => {
   });
 
   // TODO: check <picture> source images
-  test("images must be 2000px wide or less", () =>
+  test("images must be 1920px wide or less", () =>
     images.forEach(img =>
       expect(
         img.dimensions.width,
         `image width of ${img.dimensions.width} in ${img.file} index.html too wide`
-      ).toBeLessThanOrEqual(2000)
+      ).toBeLessThanOrEqual(1920)
     ));
 
   test("relative paths to images used, and images must be in the images directory", () => {
@@ -271,20 +258,6 @@ describe("\nMain index.html\n-----------------------", () => {
       ).not.toBeNull();
     });
   });
-
-  test("two articles with class panel", () => {
-    const panels = docs[INDEX].querySelectorAll("article.panel");
-    expect(panels.length).toBeGreaterThanOrEqual(2);
-  });
-
-  test("left class used once inside both panel articles", () => {
-    const panels = docs[INDEX].querySelectorAll("article.panel");
-
-    panels.forEach(panel => {
-      const lefts = panel.querySelectorAll(".left");
-      expect(lefts.length).toBe(1);
-    });
-  });
 });
 
 describe("\nCSS tests\n-----------------------", () => {
@@ -326,7 +299,7 @@ describe("\nCSS tests\n-----------------------", () => {
 
   // visual tests (not tested here): overlay working; filter or background color
   test("hero section contains an <h1> and a <p>", () => {
-    const hero = docs[INDEX].querySelector(".hero");
+    const hero = docs[INDEX].querySelector("section.hero");
     expect(hero.querySelector("h1")).not.toBeNull();
     expect(hero.querySelector("p")).not.toBeNull();
   });
@@ -340,6 +313,12 @@ describe("\nCSS tests\n-----------------------", () => {
     const cards = docs[INDEX].querySelectorAll("section.cards .card");
     expect(cards.length).toBe(4);
   });
+});
+
+/******************
+ **   new tests  **
+ ******************/
+describe("new tests", () => {
   test("css contains at least two media queries which use (min-width: ...)", () => {
     const count = (css.match(/@media\s*\(min-width/g) || []).length;
     expect(count).toBeGreaterThanOrEqual(2);
@@ -364,159 +343,23 @@ describe("\nCSS tests\n-----------------------", () => {
     const regex = new RegExp(/main\s*{[^}]+max-width\s*:/, "gm");
     expect(regex.test(css)).toBe(true);
   });
-});
 
-/******************
- **   new tests  **
- ******************/
-
-describe("\nContact page specific tests\n-----------------------", () => {
-  test("contact page contains a form", () => {
-    const form = docs[CONTACT].querySelector("form");
-    expect(form).not.toBeNull();
+  test("two articles with class panel", () => {
+    const panels = docs[INDEX].querySelectorAll("article.panel");
+    expect(panels.length).toBeGreaterThanOrEqual(2);
   });
 
-  test("form contains a text input and an email input", () => {
-    const form = docs[CONTACT].querySelector("form");
-    expect(
-      form.querySelector("input[type=text]"),
-      "input[type=text] not found"
-    ).not.toBeNull();
-    expect(
-      form.querySelector("input[type=email]"),
-      "input[type=email] not found"
-    ).not.toBeNull();
-  });
+  test("left class used once inside both panel articles", () => {
+    const panels = docs[INDEX].querySelectorAll("article.panel");
 
-  test("email input set as a required field", () => {
-    const form = docs[CONTACT].querySelector("form");
-    expect(form.querySelector("input[type=email]").required).toBe(true);
-  });
-
-  test("checkboxes and radio buttons are contained in a fieldset with a legend", () => {
-    const fieldsets =
-      docs[CONTACT].querySelector("form").querySelectorAll("fieldset");
-    expect(fieldsets, "no fieldsets found").not.toBeNull();
-
-    fieldsets.forEach((fieldset, i) => {
-      expect(
-        fieldset.querySelector("legend"),
-        `fieldset ${i + 1} does not have a legend`
-      ).not.toBeNull();
+    panels.forEach(panel => {
+      const lefts = panel.querySelectorAll(".left");
+      expect(lefts.length).toBe(1);
     });
   });
 
-  test("all checkbox inputs have the same name attribute and have a value attribute set", () => {
-    const checks = docs[CONTACT].querySelector("form").querySelectorAll(
-      "fieldset input[type=checkbox]"
-    );
-    expect(checks, "no checkboxes found").not.toBeNull();
-    const name = checks[0].getAttribute("name");
-    let failName = false;
-    let failValue = false;
-    checks.forEach(check => {
-      if (check.getAttribute("name") !== name) {
-        failName = true;
-      }
-      if (check.getAttribute("value") === null) {
-        failValue = true;
-      }
-    });
-    expect(failName, "name attributes are not the same").toBe(false);
-    expect(failValue, "not all checkboxes have a value attribute").toBe(false);
-  });
-
-  test("all radio button inputs have the same name attribute and have a value attribute set", () => {
-    const radios = docs[CONTACT].querySelector("form").querySelectorAll(
-      "fieldset input[type=radio]"
-    );
-    expect(radios, "no radio buttons found").not.toBeNull();
-    const name = radios[0].name;
-    let fail = false;
-    radios.forEach(radio => {
-      if (radio.name !== name) {
-        fail = true;
-      }
-      expect(fail).toBe(false);
-    });
-  });
-
-  test("form contains a textarea and a submit <button>", () => {
-    const form = docs[CONTACT].querySelector("form");
-    expect(
-      form.querySelector("textarea"),
-      "form does not contain a <textarea>"
-    ).not.toBeNull();
-    expect(
-      form.querySelector("button"),
-      "form does not contain a <button>"
-    ).not.toBeNull();
-  });
-
-  test("textarea contains a placeholder", () => {
-    const form = docs[CONTACT].querySelector("form");
-    expect(
-      form.querySelector("textarea").getAttribute("placeholder")
-    ).not.toBeNull();
-  });
-
-  test("all form <input> elements must have type, id and name attributes", () => {
-    const inputs =
-      docs[CONTACT].querySelector("form").querySelectorAll("input");
-
-    let fail = false;
-    let problems = [];
-    inputs.forEach(element => {
-      const type = element.getAttribute("type");
-      const id = element.getAttribute("id");
-      const name = element.getAttribute("name");
-      if (type === null || id === null || name === null) {
-        fail = true;
-
-        const input = id
-          ? id
-          : name
-          ? name
-          : type
-          ? type
-          : "{no id, name or type}";
-        problems.push(input);
-      }
-    });
-    expect(
-      fail,
-      `inputs with issues [id|name|type] ${problems.join(", ")}`
-    ).toBe(false);
-  });
-
-  test("explicit label used with a for attribute linking it to a form element", () => {
-    const labels =
-      docs[CONTACT].querySelector("form").querySelectorAll("label");
-    const problems = [];
-    expect(labels, "no labels found").not.toBeNull();
-    labels.forEach(label => {
-      //check that label is not implicit
-      if (label.firstElementChild) {
-        problems.push(
-          `${label.textContent}: contains an element - use explicit label`
-        );
-      }
-      // check that label has a for attribute
-      if (!label.getAttribute("for")) {
-        problems.push(`${label.textContent} missing for attribute`);
-      } else {
-        // check that label for attribute matches an id
-        const id = label.getAttribute("for");
-
-        if (!docs[CONTACT].querySelector(`#${id}`)) {
-          problems.push(
-            `${label.textContent}: "for=${id}" does not match an id on the page`
-          );
-        }
-      }
-    });
-    expect(problems.length, `labels with issues:\n${problems.join("\n")}`).toBe(
-      0
-    );
-  });
+  /* visual tests (not tested here):
+    - hero overlay flex,
+    - panel flex working
+    - cards flex working  */
 });
